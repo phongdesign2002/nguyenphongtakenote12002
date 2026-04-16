@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline Notes</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4a90e2">
+    <style>
+        /* Giữ nguyên phần CSS từ câu trả lời trước của mình */
+        :root { --primary-color: #4a90e2; --bg-color: #f4f7f6; --text-color: #333; --success-color: #27ae60; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg-color); display: flex; justify-content: center; padding: 20px; }
+        .container { width: 100%; max-width: 500px; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: var(--primary-color); }
+        .input-group { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+        input { padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; }
+        button#add-btn { padding: 12px; background: var(--primary-color); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        ul { list-style: none; padding: 0; }
+        li { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid #eee; }
+        .completed { text-decoration: line-through; color: #aaa; }
+        .task-checkbox { width: 20px; height: 20px; accent-color: var(--success-color); }
+        .delete-btn { margin-left: auto; color: #ff5e5e; border: none; background: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>📝 Offline Daily Notes</h2>
+    <div class="input-group">
+        <input type="text" id="note-input" placeholder="Việc cần làm...">
+        <button id="add-btn">Thêm Công Việc</button>
+    </div>
+    <ul id="note-list"></ul>
+</div>
+
+<script>
+    // --- PHẦN ĐĂNG KÝ OFFLINE (PWA) ---
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js')
+                .then(reg => console.log('Offline mode sẵn sàng!'))
+                .catch(err => console.log('Lỗi đăng ký:', err));
+        });
+    }
+
+    // --- LOGIC APP (Giống bản trước) ---
+    const noteInput = document.getElementById('note-input');
+    const noteList = document.getElementById('note-list');
+
+    document.addEventListener('DOMContentLoaded', getNotes);
+    document.getElementById('add-btn').onclick = addNote;
+
+    function addNote() {
+        if (!noteInput.value.trim()) return;
+        const note = { id: Date.now(), text: noteInput.value, completed: false };
+        renderNote(note);
+        saveLocal(note);
+        noteInput.value = '';
+    }
+
+    function renderNote(note) {
+        const li = document.createElement('li');
+        li.innerHTML = `
+            <input type="checkbox" class="task-checkbox" ${note.completed ? 'checked' : ''}>
+            <span class="${note.completed ? 'completed' : ''}">${note.text}</span>
+            <button class="delete-btn">Xóa</button>
+        `;
+        li.querySelector('.task-checkbox').onchange = (e) => {
+            li.querySelector('span').classList.toggle('completed', e.target.checked);
+            updateStatus(note.id);
+        };
+        li.querySelector('.delete-btn').onclick = () => { li.remove(); removeLocal(note.id); };
+        noteList.appendChild(li);
+    }
+
+    function saveLocal(note) {
+        let notes = JSON.parse(localStorage.getItem('offNotes') || '[]');
+        notes.push(note);
+        localStorage.setItem('offNotes', JSON.stringify(notes));
+    }
+
+    function getNotes() {
+        JSON.parse(localStorage.getItem('offNotes') || '[]').forEach(renderNote);
+    }
+
+    function removeLocal(id) {
+        let notes = JSON.parse(localStorage.getItem('offNotes')).filter(n => n.id !== id);
+        localStorage.setItem('offNotes', JSON.stringify(notes));
+    }
+
+    function updateStatus(id) {
+        let notes = JSON.parse(localStorage.getItem('offNotes'));
+        notes.forEach(n => { if(n.id === id) n.completed = !n.completed; });
+        localStorage.setItem('offNotes', JSON.stringify(notes));
+    }
+</script>
+</body>
+</html>
